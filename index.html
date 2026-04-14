@@ -560,6 +560,7 @@ html, body {
     min-height: 100dvh;
     border-radius: 0;
     padding: 0;
+    padding-bottom: env(safe-area-inset-bottom, 0); /* iOS ホームインジケータ対策 */
     box-shadow: none;
     background: transparent;
     flex-shrink: 1;
@@ -572,7 +573,13 @@ html, body {
   .status-bar { display: none; } /* 実機のステータスバーがあるので不要 */
   .modal-backdrop { border-radius: 0; padding: 8px; }
   .modal { max-width: 92%; }
-  .rich-menu { height: 160px; } /* 少し縮めて確実に収める */
+  /* リッチメニュー: SVG viewBoxの縦横比(390:180)に合わせて高さを自動算出→切れ防止 */
+  .rich-menu {
+    height: auto;
+    aspect-ratio: 390 / 180;
+    width: 100%;
+    flex-shrink: 0;
+  }
   /* Dev パネルはスマホでは折りたたみ表示 */
   .dev-panel {
     width: 100%;
@@ -586,7 +593,7 @@ html, body {
 
 /* 小さい画面（iPhone SE等）向け微調整 */
 @media (max-width: 375px) {
-  .rich-menu { height: 140px; }
+  /* .rich-menu は aspect-ratio で自動算出されるため高さ指定なし */
   .line-header { padding: 6px 10px 8px; }
   .line-header .title { font-size: 14px; }
   .bubble { font-size: 13px; }
@@ -668,7 +675,7 @@ html, body {
       <div class="rich-menu" id="rich-menu">
         <div class="rm-variant-badge" id="rm-badge">RM: setup</div>
         <!-- SVG 背景（state.menuVariant で描画差替） -->
-        <svg id="rm-svg" viewBox="0 0 390 180" preserveAspectRatio="xMidYMid slice"></svg>
+        <svg id="rm-svg" viewBox="0 0 390 180" preserveAspectRatio="none"></svg>
         <!-- クリック可能なホットスポット（画像の上にオーバーレイ） -->
         <div class="rm-hotspots" id="rm-hotspots">
           <div class="hotspot" data-target="learn" onclick="onRichMenuTap('learn')"></div>
