@@ -1,0 +1,2205 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>&Y 公式LINE プロトタイプ v3（Anybot挙動忠実化・本番コピー）</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  height: 100%;
+  font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic", sans-serif;
+  background: linear-gradient(135deg, #e0e7ff 0%, #f0f4ff 100%);
+  color: #333;
+  overflow: hidden;
+  -webkit-text-size-adjust: 100%;
+}
+.stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 24px;
+  min-height: 100vh;
+  padding: 24px;
+}
+/* ============ Phone Frame ============ */
+.phone {
+  width: 390px;
+  height: 844px;
+  background: #000;
+  border-radius: 48px;
+  padding: 14px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+  position: relative;
+  flex-shrink: 0;
+}
+.phone::before {
+  content: "";
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 28px;
+  background: #000;
+  border-radius: 20px;
+  z-index: 10;
+}
+.screen {
+  width: 100%;
+  height: 100%;
+  background: #8dadc5;
+  border-radius: 36px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+/* ============ LINE Header ============ */
+.status-bar {
+  height: 44px;
+  background: transparent;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 28px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  flex-shrink: 0;
+}
+.status-bar .time { margin-top: 6px; }
+.status-bar .icons { margin-top: 6px; display: flex; gap: 4px; font-size: 12px; }
+.line-header {
+  background: #fff;
+  padding: 8px 12px 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-bottom: 1px solid #e0e0e0;
+  flex-shrink: 0;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+}
+.line-header .back { font-size: 22px; color: #333; padding: 0 4px; cursor: pointer; }
+.line-header .avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6b73ff, #000dff);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+}
+.line-header .title {
+  flex: 1;
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f1f1f;
+}
+.line-header .title small {
+  display: block;
+  font-size: 11px;
+  color: #888;
+  font-weight: 400;
+}
+.line-header .actions { display: flex; gap: 12px; font-size: 18px; color: #555; }
+
+/* ============ Chat Area ============ */
+.chat {
+  flex: 1;
+  overflow-y: auto;
+  padding: 12px 10px 16px;
+  background: #8dadc5;
+  scroll-behavior: smooth;
+}
+.chat::-webkit-scrollbar { width: 0; }
+.date-sep {
+  text-align: center;
+  color: #fff;
+  font-size: 11px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 12px;
+  padding: 3px 10px;
+  margin: 8px auto;
+  width: fit-content;
+}
+.bubble-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  margin-bottom: 6px;
+  animation: fadeSlide 0.25s ease-out;
+}
+.bubble-row.user { justify-content: flex-end; }
+.bubble-avatar {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #6b73ff, #000dff);
+  color: #fff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700;
+  flex-shrink: 0;
+}
+.bubble-col {
+  display: flex;
+  flex-direction: column;
+  max-width: 75%;
+}
+.bubble-row.user .bubble-col { align-items: flex-end; }
+.bubble-name {
+  font-size: 11px;
+  color: #fff;
+  margin-left: 10px;
+  margin-bottom: 2px;
+}
+.bubble {
+  background: #fff;
+  padding: 10px 13px;
+  border-radius: 16px;
+  font-size: 14px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  word-break: break-word;
+  box-shadow: 0 1px 1px rgba(0,0,0,0.05);
+  position: relative;
+}
+.bubble-row.user .bubble {
+  background: #8ce46a;
+  border-radius: 16px;
+}
+.bubble.sticker {
+  background: transparent;
+  box-shadow: none;
+  font-size: 40px;
+  padding: 0;
+}
+.bubble.notice {
+  background: #fff4d6;
+  border: 1px solid #f0d891;
+}
+.bubble-time {
+  font-size: 10px;
+  color: rgba(255,255,255,0.85);
+  margin: 0 6px;
+  align-self: flex-end;
+  padding-bottom: 2px;
+}
+.bubble-row.user .bubble-time { order: -1; }
+
+/* QuickReply chips row under a bot bubble */
+.quick-replies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 6px 0 8px 42px;
+  animation: fadeSlide 0.25s ease-out;
+}
+.qr-chip {
+  background: #fff;
+  border: 1px solid #06c755;
+  color: #06c755;
+  border-radius: 18px;
+  padding: 6px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+.qr-chip:hover { background: #06c755; color: #fff; }
+.qr-chip:disabled { opacity: 0.4; cursor: not-allowed; }
+.qr-chip.secondary { border-color: #999; color: #555; }
+.qr-chip.secondary:hover { background: #555; color: #fff; }
+
+/* Flex Message card */
+.flex-card {
+  background: #fff;
+  border-radius: 14px;
+  overflow: hidden;
+  margin: 4px 0;
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+  max-width: 260px;
+}
+.flex-hero {
+  background: linear-gradient(135deg, #06c755, #04a846);
+  color: #fff;
+  padding: 14px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.flex-body { padding: 12px 14px 8px; }
+.flex-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; color: #222; }
+.flex-sub { font-size: 12px; color: #666; margin-bottom: 8px; }
+.flex-footer {
+  border-top: 1px solid #eee;
+  display: flex;
+  flex-direction: column;
+}
+.flex-btn {
+  padding: 10px;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  color: #06c755;
+  border-bottom: 1px solid #eee;
+  background: #fff;
+  border: none;
+  width: 100%;
+}
+.flex-btn:last-child { border-bottom: none; }
+.flex-btn:hover { background: #f5fff9; }
+.flex-btn.disabled { color: #bbb; pointer-events: none; cursor: not-allowed; }
+
+/* Skill list rows inside a bubble */
+.skill-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 14px;
+}
+.skill-row .idx { min-width: 18px; color: #888; }
+.skill-row.current { font-weight: 700; color: #06c755; }
+.skill-row.locked { color: #aaa; }
+.skill-row .icon { width: 18px; text-align: center; }
+
+/* ============ Rich Menu (v3: 画像 + ホットスポット方式) ============ */
+.rich-menu {
+  background: #1a2440;
+  height: 180px;
+  flex-shrink: 0;
+  border-top: 1px solid #ddd;
+  position: relative;
+  overflow: hidden;
+}
+.rich-menu svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.rm-variant-badge {
+  position: absolute;
+  top: 4px;
+  left: 6px;
+  background: rgba(0,0,0,0.55);
+  color: #ffd;
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  letter-spacing: 0.3px;
+  z-index: 3;
+  pointer-events: none;
+}
+.rm-hotspots {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: 1fr 1fr;
+  grid-template-columns: 1fr 1fr;
+  z-index: 2;
+}
+.hotspot {
+  cursor: pointer;
+  transition: background 0.15s;
+  border-right: 1px solid rgba(255,255,255,0.06);
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+.hotspot:hover { background: rgba(255,255,255,0.08); }
+.hotspot.locked { cursor: not-allowed; background: rgba(0,0,0,0.35); }
+.hotspot.locked:hover { background: rgba(0,0,0,0.35); }
+
+.keyboard-hint {
+  background: #f0f0f0;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  padding: 0 12px;
+  font-size: 12px;
+  color: #888;
+  border-top: 1px solid #e0e0e0;
+  flex-shrink: 0;
+}
+
+/* ============ Video Modal (mini-app) ============ */
+.modal-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 20;
+  padding: 16px;
+  border-radius: 36px;
+}
+.modal-backdrop.active { display: flex; }
+.modal {
+  background: #fff;
+  border-radius: 18px;
+  width: 100%;
+  max-width: 340px;
+  max-height: 90%;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.modal-header {
+  padding: 10px 14px;
+  background: linear-gradient(135deg, #1a2440, #2d3b63);
+  color: #fff;
+  font-size: 13px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+.modal-header .close { cursor: pointer; font-size: 18px; }
+.modal-header .liff-chip {
+  background: rgba(255,255,255,0.18);
+  color: #ffd;
+  font-size: 9px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  letter-spacing: 0.3px;
+}
+.modal-header .liff-title { flex: 1; font-weight: 600; }
+.liff-progress-line {
+  height: 3px;
+  background: rgba(255,255,255,0.15);
+}
+.liff-progress-line-bar {
+  height: 100%;
+  background: #ffd166;
+  width: 0%;
+  transition: width 0.3s;
+}
+.modal-body { padding: 14px; overflow-y: auto; flex: 1; }
+.video-mock {
+  background: #000;
+  aspect-ratio: 16/9;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 48px;
+  margin-bottom: 10px;
+  position: relative;
+  cursor: pointer;
+}
+.video-mock::after {
+  content: "tap to simulate playback";
+  position: absolute;
+  bottom: 6px;
+  font-size: 9px;
+  opacity: 0.6;
+}
+.video-progress {
+  height: 4px;
+  background: #eee;
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+.video-progress-bar {
+  height: 100%;
+  background: #06c755;
+  width: 0%;
+  transition: width 0.3s;
+}
+.modal-footer { padding: 10px 14px; border-top: 1px solid #eee; }
+.btn-primary {
+  background: #06c755;
+  color: #fff;
+  border: none;
+  border-radius: 20px;
+  padding: 10px 20px;
+  font-size: 14px;
+  font-weight: 700;
+  width: 100%;
+  cursor: pointer;
+}
+.btn-primary:hover { background: #04a846; }
+.btn-primary:disabled { background: #bbb; cursor: not-allowed; }
+.btn-secondary {
+  background: #f0f0f0;
+  color: #555;
+  border: none;
+  border-radius: 20px;
+  padding: 10px 20px;
+  font-size: 13px;
+  width: 100%;
+  cursor: pointer;
+  margin-top: 6px;
+}
+
+/* Form inputs in modal */
+.form-label { font-size: 13px; font-weight: 600; margin-bottom: 4px; display: block; color: #333; }
+.form-sub { font-size: 11px; color: #888; margin-bottom: 6px; }
+.form-input, .form-textarea {
+  width: 100%;
+  border: 1px solid #ccc;
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 13px;
+  margin-bottom: 10px;
+  font-family: inherit;
+}
+.form-textarea { resize: vertical; min-height: 60px; }
+
+/* ============ Dev Panel ============ */
+.dev-panel {
+  width: 340px;
+  background: #1e1e2e;
+  color: #e0e0e0;
+  border-radius: 16px;
+  padding: 18px;
+  max-height: 844px;
+  overflow-y: auto;
+  font-size: 13px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+  flex-shrink: 0;
+}
+.dev-panel h2 {
+  font-size: 14px;
+  color: #ffb86c;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.dev-panel h2::before { content: "🛠️"; }
+.dev-panel h3 {
+  font-size: 12px;
+  color: #8be9fd;
+  margin: 14px 0 6px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.dev-attr {
+  display: flex;
+  justify-content: space-between;
+  padding: 3px 0;
+  font-family: "SF Mono", Consolas, monospace;
+  font-size: 11px;
+  border-bottom: 1px dashed #3a3a4a;
+}
+.dev-attr .key { color: #bd93f9; }
+.dev-attr .val { color: #f1fa8c; }
+.dev-btn {
+  background: #44475a;
+  color: #f8f8f2;
+  border: none;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  margin: 2px;
+  font-family: inherit;
+}
+.dev-btn:hover { background: #6272a4; }
+.dev-btn.primary { background: #50fa7b; color: #1e1e2e; font-weight: 700; }
+.dev-btn.warn { background: #ff5555; color: #fff; }
+.dev-btn-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.dev-screen-hint {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: #282a36;
+  border-radius: 6px;
+  font-size: 11px;
+  color: #50fa7b;
+}
+
+.reset-link {
+  display: inline-block;
+  margin-top: 8px;
+  color: #ff79c6;
+  text-decoration: underline;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+/* Scrollbar for dev panel */
+.dev-panel::-webkit-scrollbar { width: 6px; }
+.dev-panel::-webkit-scrollbar-thumb { background: #44475a; border-radius: 3px; }
+
+@keyframes fadeSlide {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Responsive — タブレット以下は縦積み */
+@media (max-width: 900px) {
+  .stage { flex-direction: column; }
+  .dev-panel { max-height: 300px; width: 390px; }
+}
+
+/* Mobile (スマホ) — フォンフレームを外して実機全画面に */
+@media (max-width: 600px) {
+  html, body {
+    overflow: auto;
+    height: auto;
+    background: #8dadc5;
+  }
+  .stage {
+    padding: 0;
+    gap: 0;
+    min-height: 100vh;
+    min-height: 100dvh; /* iOS Safari のツールバー対策 */
+    align-items: stretch;
+  }
+  .phone {
+    width: 100%;
+    height: 100vh;
+    height: 100dvh;
+    min-height: 100dvh;
+    border-radius: 0;
+    padding: 0;
+    box-shadow: none;
+    background: transparent;
+    flex-shrink: 1;
+  }
+  .phone::before { display: none; } /* ノッチ非表示 */
+  .screen {
+    border-radius: 0;
+    height: 100%;
+  }
+  .status-bar { display: none; } /* 実機のステータスバーがあるので不要 */
+  .modal-backdrop { border-radius: 0; padding: 8px; }
+  .modal { max-width: 92%; }
+  .rich-menu { height: 160px; } /* 少し縮めて確実に収める */
+  /* Dev パネルはスマホでは折りたたみ表示 */
+  .dev-panel {
+    width: 100%;
+    max-height: none;
+    border-radius: 0;
+    margin-top: 0;
+    font-size: 12px;
+  }
+  .dev-panel summary { cursor: pointer; color: #ffb86c; font-weight: 700; }
+}
+
+/* 小さい画面（iPhone SE等）向け微調整 */
+@media (max-width: 375px) {
+  .rich-menu { height: 140px; }
+  .line-header { padding: 6px 10px 8px; }
+  .line-header .title { font-size: 14px; }
+  .bubble { font-size: 13px; }
+}
+
+/* Carousel */
+.carousel {
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  margin: 4px 0;
+  max-width: 100%;
+}
+.carousel::-webkit-scrollbar { height: 0; }
+.carousel .flex-card { flex-shrink: 0; min-width: 220px; }
+
+/* Toast */
+.toast {
+  position: absolute;
+  top: 56px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #333;
+  color: #fff;
+  padding: 8px 14px;
+  border-radius: 20px;
+  font-size: 12px;
+  opacity: 0;
+  transition: opacity 0.3s;
+  z-index: 30;
+  pointer-events: none;
+}
+.toast.show { opacity: 0.95; }
+
+/* Screen-ID badge */
+.screen-badge {
+  display: inline-block;
+  background: #eee;
+  color: #555;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-right: 4px;
+  font-weight: 600;
+}
+.bubble-row.user .bubble .screen-badge { display: none; }
+
+/* Notice bubble for N-xx */
+.bubble.notification {
+  background: #fffbeb;
+  border-left: 3px solid #f59e0b;
+}
+</style>
+</head>
+<body>
+<div class="stage">
+  <!-- =========== PHONE =========== -->
+  <div class="phone">
+    <div class="screen" id="screen">
+      <!-- Status bar -->
+      <div class="status-bar">
+        <span class="time" id="clock">9:41</span>
+        <span class="icons">●●● 5G 100%</span>
+      </div>
+      <!-- LINE Header -->
+      <div class="line-header">
+        <span class="back" onclick="goBack()">‹</span>
+        <div class="avatar">&amp;Y</div>
+        <div class="title">
+          &amp;Y オンラインビジネススクール
+          <small id="coach-sub">担当: <span id="coach-name">山田太郎</span> コーチ</small>
+        </div>
+        <div class="actions">☎ ⋮</div>
+      </div>
+      <!-- Chat area -->
+      <div class="chat" id="chat"></div>
+      <!-- Rich Menu (v3: 画像 + ホットスポット方式) -->
+      <div class="rich-menu" id="rich-menu">
+        <div class="rm-variant-badge" id="rm-badge">RM: setup</div>
+        <!-- SVG 背景（state.menuVariant で描画差替） -->
+        <svg id="rm-svg" viewBox="0 0 390 180" preserveAspectRatio="xMidYMid slice"></svg>
+        <!-- クリック可能なホットスポット（画像の上にオーバーレイ） -->
+        <div class="rm-hotspots" id="rm-hotspots">
+          <div class="hotspot" data-target="learn" onclick="onRichMenuTap('learn')"></div>
+          <div class="hotspot" data-target="work" onclick="onRichMenuTap('work')"></div>
+          <div class="hotspot" data-target="mypage" onclick="onRichMenuTap('mypage')"></div>
+          <div class="hotspot" data-target="support" onclick="onRichMenuTap('support')"></div>
+        </div>
+      </div>
+      <div class="keyboard-hint">メッセージを入力 &nbsp;&nbsp;📎 😊 🎤</div>
+
+      <!-- Modal container -->
+      <div class="modal-backdrop" id="modal-backdrop">
+        <div class="modal" id="modal"></div>
+      </div>
+      <!-- Toast -->
+      <div class="toast" id="toast"></div>
+    </div>
+  </div>
+
+  <!-- =========== DEV PANEL =========== -->
+  <div class="dev-panel">
+    <details open id="dev-details">
+    <summary><h2 style="display:inline;">&amp;Y 公式LINE プロトタイプ v3</h2></summary>
+    <div style="font-size:11px;color:#999;margin:10px 0;">
+      <b>Anybot挙動忠実化・本番コピー</b><br>
+      画像リッチメニュー × LIFFミニアプリ × タグ/シナリオ/セグメント配信<br>
+      画面ID: RM / L-01〜L-13 / W-01 / M-01〜M-03 / S-01〜S-03 / N-01〜N-03
+    </div>
+
+    <h3>User Attributes</h3>
+    <div id="attrs"></div>
+
+    <h3>🏷️ Anybot タグ（発火中）</h3>
+    <div id="tags-panel" style="font-family:'SF Mono',Consolas,monospace;font-size:11px;"></div>
+
+    <h3>📊 セグメント評価</h3>
+    <div id="segments-panel" style="font-size:11px;"></div>
+
+    <h3>📜 シナリオ履歴</h3>
+    <div id="scenario-log" style="font-family:'SF Mono',Consolas,monospace;font-size:10px;max-height:90px;overflow-y:auto;background:#282a36;padding:6px;border-radius:4px;"></div>
+
+    <h3>📢 一斉配信シミュレート</h3>
+    <div class="dev-btn-row">
+      <button class="dev-btn" onclick="broadcastToSegment('seg_never_started')">未着手</button>
+      <button class="dev-btn" onclick="broadcastToSegment('seg_p1_in_progress')">P1進行中</button>
+      <button class="dev-btn" onclick="broadcastToSegment('seg_p1_done')">P1修了</button>
+      <button class="dev-btn" onclick="broadcastToSegment('seg_p2_in_progress')">P2進行中</button>
+    </div>
+
+    <h3>シナリオプリセット</h3>
+    <div class="dev-btn-row">
+      <button class="dev-btn primary" onclick="preset('A')">A: 初回ログイン</button>
+      <button class="dev-btn" onclick="preset('B')">B: 学習途中</button>
+      <button class="dev-btn" onclick="preset('C')">C: テスト前</button>
+      <button class="dev-btn" onclick="preset('D')">D: Phase2開始</button>
+      <button class="dev-btn" onclick="preset('E')">E: Phase2途中</button>
+    </div>
+
+    <h3>通知シミュレーション</h3>
+    <div class="dev-btn-row">
+      <button class="dev-btn" onclick="pushNotification('N-01')">N-01 初回翌日</button>
+      <button class="dev-btn" onclick="pushNotification('N-02')">N-02 3日未操作</button>
+      <button class="dev-btn" onclick="pushNotification('N-03')">N-03 スキル完了</button>
+    </div>
+
+    <h3>画面直接ジャンプ</h3>
+    <div class="dev-btn-row" id="screen-jumps"></div>
+
+    <h3>その他</h3>
+    <div class="dev-btn-row">
+      <button class="dev-btn" onclick="clearChat()">💬 トーククリア</button>
+      <button class="dev-btn" onclick="cycleVariant()">🎨 RM画像切替</button>
+      <button class="dev-btn warn" onclick="resetAll()">⚠ 完全リセット</button>
+    </div>
+
+    <div class="dev-screen-hint" id="current-screen">
+      画面: RM / 待機中
+    </div>
+
+    <div style="margin-top:14px;font-size:10px;color:#777;line-height:1.6;">
+      <b>設計基盤:</b> 新コンテンツ_フレームワーク再構築_v1（2026-04-11）<br>
+      <b>準拠議事録:</b> 2026-04-10 &Y 新コンテンツ会議<br>
+      <b>実装方針:</b> Anybot 実挙動に忠実（画像RM / LIFF / タグ / シナリオ / セグメント）<br>
+      <b>参考学習:</b> Newton 物販スクール クリエイティブ（設計パターンのみ抽出、流用なし）<br>
+      <span class="reset-link" onclick="showHelp()">▶ このプロトタイプの使い方</span>
+    </div>
+    </details>
+  </div>
+</div>
+
+<script>
+// モバイルのときは Dev パネルを初期折りたたみ
+(function() {
+  if (window.innerWidth <= 600) {
+    const d = document.getElementById('dev-details');
+    if (d) d.removeAttribute('open');
+  }
+})();
+</script>
+
+<script>
+// ====================================================================
+// STATE
+// ====================================================================
+const DEFAULT_STATE = {
+  current_phase: 1,
+  p1_skill: 1,
+  p1_skill_step: 'video_1',
+  p1_thinking_a: 0,
+  p1_thinking_b: 0,
+  p1_thinking_c: 0,
+  p2_work: 0,
+  p2_work_step: 'not_started',
+  coach_name: '山田太郎',
+  initialized: false,
+  menuVariant: 'setup' // setup / p1_running / p1_done / p2_running / p2_done
+};
+let state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+// Anybot タグストア（Set）— 発火したタグ／セグメントの観測可能モデル
+let tags = new Set();
+// シナリオ実行履歴
+let scenarioLog = [];
+let currentScreen = 'RM';
+let historyStack = [];
+
+// ====================================================================
+// Anybot TAG / SEGMENT MODEL
+// ====================================================================
+function addTag(t) {
+  if (tags.has(t)) return;
+  tags.add(t);
+  scenarioLog.push({ type: 'tag', value: t, time: nowHHMM() });
+  toast(`🏷️ タグ付与: ${t}`);
+  refreshTagsPanel();
+}
+function hasTag(t) { return tags.has(t); }
+function removeTag(t) { tags.delete(t); refreshTagsPanel(); }
+function clearTags() { tags.clear(); scenarioLog = []; refreshTagsPanel(); }
+
+// セグメント定義（Anybot の「セグメント配信」を模擬）
+const SEGMENTS = {
+  'seg_never_started':  { label: '未着手ユーザー', match: () => !state.initialized },
+  'seg_p1_in_progress': { label: 'Phase1 進行中',   match: () => state.initialized && state.current_phase === 1 && !(state.p1_skill >= 8 && state.p1_skill_step === 'done') },
+  'seg_p1_done':        { label: 'Phase1 修了',     match: () => state.p1_skill >= 8 && state.p1_skill_step === 'done' },
+  'seg_p2_in_progress': { label: 'Phase2 進行中',   match: () => state.current_phase === 2 && !(state.p2_work >= 5 && state.p2_work_step === 'done') },
+  'seg_p2_done':        { label: '全修了',          match: () => state.p2_work >= 5 && state.p2_work_step === 'done' }
+};
+function evalSegment(key) { return SEGMENTS[key] ? SEGMENTS[key].match() : false; }
+
+// ====================================================================
+// SCENARIO ENGINE (Anybot シナリオ起動の模擬)
+// ====================================================================
+function runScenario(id, fn) {
+  scenarioLog.push({ type: 'scenario', value: id, time: nowHHMM() });
+  refreshTagsPanel();
+  try { fn && fn(); }
+  catch (e) { console.error('scenario error', id, e); }
+}
+
+// ====================================================================
+// RICH MENU — SVG 描画（state.menuVariant で切替）
+// ====================================================================
+const RM_VARIANTS = {
+  setup:        { badge: 'setup',        icons: { learn:'start', work:'lock', mypage:'lock', support:'ok' },  title: '初期セットアップ' },
+  p1_running:   { badge: 'Phase1 進行中',  icons: { learn:'active', work:'half', mypage:'ok', support:'ok' },   title: 'Phase I' },
+  p1_done:      { badge: 'Phase1 修了',    icons: { learn:'done', work:'active', mypage:'ok', support:'ok' }, title: 'Phase I → II' },
+  p2_running:   { badge: 'Phase2 進行中',  icons: { learn:'done', work:'active', mypage:'ok', support:'ok' }, title: 'Phase II' },
+  p2_done:      { badge: '卒業',           icons: { learn:'done', work:'done', mypage:'ok', support:'ok' },  title: '修了バッジ' }
+};
+
+// セル毎の配色（&Yブランド仮色）
+const CELL_COLORS = {
+  learn:   { base:'#2d6a4f', light:'#40916c', label:'学習する',  sub:'動画→テスト/ワーク', icon:'📚' },
+  work:    { base:'#1b4965', light:'#2f6690', label:'ワーク',    sub:'単独で取り組む',    icon:'✍️' },
+  mypage:  { base:'#5a4a7d', light:'#735f9a', label:'マイページ', sub:'進捗・学習履歴',    icon:'📊' },
+  support: { base:'#4a4a4a', light:'#6a6a6a', label:'サポート',  sub:'質問・相談',        icon:'💬' }
+};
+
+function stateIconFor(kind) {
+  // kind: 'start' | 'active' | 'half' | 'done' | 'lock' | 'ok'
+  const m = {
+    start:  '▶',
+    active: '●',
+    half:   '◐',
+    done:   '✓',
+    lock:   '🔒',
+    ok:     ''
+  };
+  return m[kind] || '';
+}
+
+function renderRichMenu() {
+  const variant = RM_VARIANTS[state.menuVariant] || RM_VARIANTS.setup;
+  document.getElementById('rm-badge').textContent = `RM: ${variant.badge}`;
+  // 描画領域: 390 x 180. 2x2 = 各セル 195 x 90
+  const cells = [
+    { key:'learn',   x:0,   y:0  },
+    { key:'work',    x:195, y:0  },
+    { key:'mypage',  x:0,   y:90 },
+    { key:'support', x:195, y:90 }
+  ];
+  let svg = '';
+  // 背景ブランドカラー
+  svg += `<defs>
+    <linearGradient id="bgGrad" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#1a2440"/>
+      <stop offset="100%" stop-color="#0f1729"/>
+    </linearGradient>
+    <pattern id="dots" width="12" height="12" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="0.8" fill="rgba(255,255,255,0.05)"/>
+    </pattern>
+  </defs>`;
+  svg += `<rect width="390" height="180" fill="url(#bgGrad)"/>`;
+  svg += `<rect width="390" height="180" fill="url(#dots)"/>`;
+  cells.forEach(c => {
+    const col = CELL_COLORS[c.key];
+    const ic  = variant.icons[c.key];
+    const locked = ic === 'lock';
+    svg += `<g transform="translate(${c.x},${c.y})">`;
+    // セル背景
+    svg += `<rect x="3" y="3" width="189" height="84" rx="12" fill="${locked ? '#2a2f42' : col.base}" opacity="${locked ? 0.55 : 1}"/>`;
+    svg += `<rect x="3" y="3" width="189" height="84" rx="12" fill="none" stroke="${locked ? '#555' : col.light}" stroke-width="1.3"/>`;
+    // アイコン（絵文字はforeignObject経由で）
+    svg += `<text x="22" y="48" font-size="26" fill="#fff" opacity="${locked ? 0.5 : 1}">${col.icon}</text>`;
+    // ラベル
+    svg += `<text x="52" y="40" font-size="15" font-weight="700" fill="${locked ? '#999' : '#fff'}">${col.label}</text>`;
+    svg += `<text x="52" y="58" font-size="10" fill="${locked ? '#777' : 'rgba(255,255,255,0.78)'}">${col.sub}</text>`;
+    // 状態アイコン（右上）
+    const stIcon = stateIconFor(ic);
+    if (stIcon) {
+      svg += `<text x="178" y="22" font-size="13" fill="${locked ? '#aaa' : (ic==='done'?'#ffd166':'#ffe8a3')}" text-anchor="end">${stIcon}</text>`;
+    }
+    svg += `</g>`;
+  });
+  // &Y ロゴ
+  svg += `<text x="195" y="172" font-size="9" fill="rgba(255,255,255,0.45)" text-anchor="middle" letter-spacing="2">&amp; Y  ONLINE  BUSINESS  SCHOOL</text>`;
+  document.getElementById('rm-svg').innerHTML = svg;
+  // ホットスポットのロック状態同期
+  const hs = document.querySelectorAll('#rm-hotspots .hotspot');
+  hs.forEach(el => {
+    const tgt = el.dataset.target;
+    if (variant.icons[tgt] === 'lock') el.classList.add('locked');
+    else el.classList.remove('locked');
+  });
+}
+
+function setMenuVariant() {
+  // 現在の state から自動判定
+  let v = 'setup';
+  if (!state.initialized) v = 'setup';
+  else if (state.current_phase === 2 && state.p2_work >= 5 && state.p2_work_step === 'done') v = 'p2_done';
+  else if (state.current_phase === 2) v = 'p2_running';
+  else if (state.p1_skill >= 8 && state.p1_skill_step === 'done') v = 'p1_done';
+  else if (state.initialized) v = 'p1_running';
+  state.menuVariant = v;
+  renderRichMenu();
+}
+
+// Skill master data
+const SKILLS = [
+  { id: 1, name: 'ビジネス遂行力', videos: [
+    { title: 'ビジネス遂行力の本質', duration: '12分' },
+    { title: '遂行力を構成する5要素', duration: '10分' }
+  ]},
+  { id: 2, name: 'セルフマネジメント', videos: [
+    { title: '時間管理の原則', duration: '11分' },
+    { title: '感情マネジメント入門', duration: '13分' }
+  ]},
+  { id: 3, name: 'タスク管理', videos: [
+    { title: 'タスク管理①', duration: '10分' },
+    { title: 'タスク管理②', duration: '12分' }
+  ]},
+  { id: 4, name: '目標・目的設定', videos: [
+    { title: '人生の目的を見つける方法', duration: '12分' },
+    { title: '長期目標を日次タスクに落とし込む', duration: '10分' }
+  ]},
+  { id: 5, name: '自責思考', videos: [
+    { title: '自責思考とは', duration: '11分' },
+    { title: '他責から自責への切替', duration: '13分' }
+  ]},
+  { id: 6, name: '概念的思考力', videos: [
+    { title: '抽象と具体', duration: '12分' },
+    { title: '構造化思考', duration: '14分' }
+  ]},
+  { id: 7, name: 'クリティカルシンキング', videos: [
+    { title: 'MECEとロジックツリー', duration: '13分' },
+    { title: 'イシュー起点の思考', duration: '12分' }
+  ]},
+  { id: 8, name: 'AI活用', videos: [
+    { title: 'AI時代のビジネスパーソン', duration: '10分' },
+    { title: 'プロンプト設計の基本', duration: '13分' }
+  ]}
+];
+
+// Phase 2 works
+const WORKS = [
+  { id: 1, name: '現状を構造化する', videos: [{ title: '現状分析の型', duration: '11分' }], questions: [
+    { label: '現状の定量把握', sub: '事業・自分自身の定量的な現状を1つ記述してください。' },
+    { label: '定性的な観察', sub: '数字に表れない感触・違和感を1つ挙げてください。' }
+  ]},
+  { id: 2, name: '理想をKPIで定義する', videos: [{ title: 'KPI設計入門', duration: '12分' }], questions: [
+    { label: '目指す理想状態', sub: '半年後に到達していたい理想状態を言語化してください。' },
+    { label: 'KPI候補', sub: 'その理想を測るKPIを3つ挙げ、最重要を選んでください。' }
+  ]},
+  { id: 3, name: '仮説を立てる', videos: [
+    { title: '『イシューからはじめよ』要約', duration: '10分' },
+    { title: 'BCG流 仮説思考', duration: '13分' }
+  ], questions: [
+    { label: 'イシューの特定', sub: '表面課題と、その裏にある本質的な問いを記述してください。' },
+    { label: '仮説の設計', sub: 'イシュー／仮の答え／その根拠 を記述してください。' },
+    { label: '検証アクション', sub: '仮説を検証するために次に行う具体的アクションを記述してください。' }
+  ]},
+  { id: 4, name: '検証・修正する', videos: [{ title: '仮説検証サイクル', duration: '12分' }], questions: [
+    { label: '検証結果の記録', sub: '仮説は支持されましたか？データ・観察を記述してください。' },
+    { label: '修正した仮説', sub: '検証を踏まえて仮説をどう更新しますか？' }
+  ]},
+  { id: 5, name: '他者のケースに適用する', videos: [{ title: '転用思考', duration: '11分' }], questions: [
+    { label: '他者のケースを観察', sub: '周囲の一人を選び、その人の課題と構造を書き出してください。' },
+    { label: '転用提案', sub: 'あなたの学んだ仮説思考をその人にどう適用しますか？' }
+  ]}
+];
+
+// Screen ID jump list
+const SCREEN_JUMPS = [
+  ['RM','リッチメニュー'],
+  ['L-01','オンボーディング'],
+  ['L-02','学習再開'],
+  ['L-03','Phase選択'],
+  ['L-04','P1スキル一覧'],
+  ['L-05','スキル学習'],
+  ['L-06','動画再生'],
+  ['L-07','視聴完了'],
+  ['L-08','確認テスト'],
+  ['L-09','テスト結果'],
+  ['L-10','思考力T'],
+  ['L-11','P2ワーク一覧'],
+  ['L-12','ワーク学習'],
+  ['L-13','ワーク提出完了'],
+  ['W-01','ワーク入口(主導線)'],
+  ['M-01','マイページ'],
+  ['M-02','思考力T進捗'],
+  ['M-03','スキル一覧参照'],
+  ['S-01','サポート'],
+  ['S-02','FAQ'],
+  ['S-03','お問い合わせ']
+];
+
+// ====================================================================
+// UTILITIES
+// ====================================================================
+const chatEl = () => document.getElementById('chat');
+const modalEl = () => document.getElementById('modal');
+
+function nowHHMM() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+}
+
+function scroll() {
+  requestAnimationFrame(() => {
+    const c = chatEl();
+    c.scrollTop = c.scrollHeight;
+  });
+}
+
+function toast(text) {
+  const t = document.getElementById('toast');
+  t.textContent = text;
+  t.classList.add('show');
+  clearTimeout(t._t);
+  t._t = setTimeout(() => t.classList.remove('show'), 1500);
+}
+
+function bubble({ text = '', html = null, who = 'bot', badge = '', cls = '' }) {
+  const row = document.createElement('div');
+  row.className = `bubble-row ${who}`;
+  const avatar = `<div class="bubble-avatar">${who === 'bot' ? '&amp;Y' : '私'}</div>`;
+  const name = who === 'bot' ? `<div class="bubble-name">&amp;Yコーチ</div>` : '';
+  const badgeHtml = badge ? `<span class="screen-badge">${badge}</span>` : '';
+  const inner = html !== null ? html : text.replace(/\n/g, '<br>');
+  const content = `${badgeHtml}${inner}`;
+  if (who === 'bot') {
+    row.innerHTML = `${avatar}<div class="bubble-col">${name}<div class="bubble ${cls}">${content}</div></div><span class="bubble-time">${nowHHMM()}</span>`;
+  } else {
+    row.innerHTML = `<span class="bubble-time">${nowHHMM()}</span><div class="bubble-col"><div class="bubble ${cls}">${content}</div></div>`;
+  }
+  chatEl().appendChild(row);
+  scroll();
+  return row;
+}
+
+function quickReplies(buttons) {
+  // buttons: [{label, onClick, secondary}]
+  const wrap = document.createElement('div');
+  wrap.className = 'quick-replies';
+  buttons.forEach(b => {
+    const btn = document.createElement('button');
+    btn.className = 'qr-chip' + (b.secondary ? ' secondary' : '');
+    btn.textContent = b.label;
+    btn.onclick = () => {
+      // user bubble first
+      userSay(b.label);
+      // disable siblings
+      Array.from(wrap.children).forEach(c => c.setAttribute('disabled','true'));
+      // then the action
+      setTimeout(() => b.onClick && b.onClick(), 180);
+    };
+    wrap.appendChild(btn);
+  });
+  chatEl().appendChild(wrap);
+  scroll();
+  return wrap;
+}
+
+function userSay(text) {
+  bubble({ text, who: 'user' });
+}
+
+function dateSeparator(label) {
+  const s = document.createElement('div');
+  s.className = 'date-sep';
+  s.textContent = label;
+  chatEl().appendChild(s);
+}
+
+function flexCard({ hero = '', title = '', sub = '', buttons = [] }) {
+  const buttonsHtml = buttons.map((b, i) =>
+    `<button class="flex-btn ${b.disabled ? 'disabled' : ''}" data-idx="${i}">${b.label}</button>`
+  ).join('');
+  const html = `<div class="flex-card">
+    <div class="flex-hero">${hero}</div>
+    <div class="flex-body">
+      <div class="flex-title">${title}</div>
+      <div class="flex-sub">${sub}</div>
+    </div>
+    <div class="flex-footer">${buttonsHtml}</div>
+  </div>`;
+  const row = bubble({ html, who: 'bot' });
+  row.querySelectorAll('.flex-btn').forEach(el => {
+    if (el.classList.contains('disabled')) return;
+    el.onclick = () => {
+      const idx = parseInt(el.dataset.idx);
+      userSay(buttons[idx].label);
+      row.querySelectorAll('.flex-btn').forEach(e => e.classList.add('disabled'));
+      setTimeout(() => buttons[idx].onClick && buttons[idx].onClick(), 180);
+    };
+  });
+  return row;
+}
+
+function setScreen(id) {
+  currentScreen = id;
+  const screenName = (SCREEN_JUMPS.find(s => s[0] === id) || [])[1] || '';
+  document.getElementById('current-screen').textContent = `画面: ${id} ${screenName}`;
+  refreshAttrs();
+}
+
+function goBack() {
+  if (historyStack.length > 1) {
+    historyStack.pop(); // current
+    const prev = historyStack[historyStack.length - 1];
+    bubble({ text: `（← 戻る）`, who: 'bot', cls: 'notice' });
+    renderScreen(prev, { pushHistory: false });
+  } else {
+    toast('これ以上戻れません');
+  }
+}
+
+function clearChat() {
+  chatEl().innerHTML = '';
+  historyStack = [];
+  toast('トーク履歴をクリアしました');
+  dateSeparator('Today');
+  setScreen('RM');
+  bubble({ text: 'トークをリセットしました。リッチメニューから操作してください💫', cls: 'notice' });
+}
+
+function resetAll() {
+  if (!confirm('State / タグ / トーク履歴を完全リセットしますか？')) return;
+  state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+  clearTags();
+  clearChat();
+  refreshAttrs();
+  bubble({ text: 'すべて初期状態に戻しました ✨', cls: 'notice' });
+}
+
+function refreshAttrs() {
+  const attrs = document.getElementById('attrs');
+  attrs.innerHTML = Object.entries(state).map(([k,v]) =>
+    `<div class="dev-attr"><span class="key">${k}</span><span class="val">${v}</span></div>`
+  ).join('');
+  document.getElementById('coach-name').textContent = state.coach_name;
+  setMenuVariant();
+  refreshTagsPanel();
+}
+
+function refreshTagsPanel() {
+  // タグ一覧
+  const tp = document.getElementById('tags-panel');
+  if (tp) {
+    if (tags.size === 0) tp.innerHTML = '<span style="color:#666;">（まだタグは発火していません）</span>';
+    else tp.innerHTML = Array.from(tags).map(t => `<span style="display:inline-block;background:#44475a;color:#f1fa8c;padding:2px 6px;margin:2px;border-radius:3px;">${t}</span>`).join('');
+  }
+  // セグメント評価
+  const sp = document.getElementById('segments-panel');
+  if (sp) {
+    sp.innerHTML = Object.entries(SEGMENTS).map(([k, s]) => {
+      const hit = s.match();
+      return `<div class="dev-attr"><span class="key">${s.label}</span><span class="val" style="color:${hit?'#50fa7b':'#555'}">${hit?'✓ 該当':'—'}</span></div>`;
+    }).join('');
+  }
+  // シナリオ履歴（末尾 8 件）
+  const lg = document.getElementById('scenario-log');
+  if (lg) {
+    const rows = scenarioLog.slice(-8).reverse().map(e => {
+      const color = e.type === 'tag' ? '#f1fa8c' : '#8be9fd';
+      const prefix = e.type === 'tag' ? '🏷️' : '▶';
+      return `<div style="color:${color};">${prefix} ${e.time}  ${e.value}</div>`;
+    }).join('');
+    lg.innerHTML = rows || '<span style="color:#666;">（履歴なし）</span>';
+  }
+}
+
+function broadcastToSegment(segKey) {
+  const s = SEGMENTS[segKey];
+  if (!s) return;
+  const hit = s.match();
+  if (!hit) {
+    bubble({ text: `📢 配信シミュレート: 「${s.label}」\n現在のユーザーはこのセグメントに該当しません。本番では配信対象外となります。`, cls: 'notice' });
+    return;
+  }
+  // 該当する場合、セグメントに応じた固定メッセージを配信
+  const msgs = {
+    'seg_never_started':  { text: `📢 配信: 未着手のあなたへ\n\n登録ありがとうございます！\nまずは最初の1本、10分だけ動画を見てみませんか？`, cta: { label:'▶ 学習を始める', fn:()=>onRichMenu('learn') } },
+    'seg_p1_in_progress': { text: `📢 配信: Phase1 応援メッセージ\n\nビジネス基礎力はもうすぐ完成です。今週あと1スキル進めてみましょう💪`, cta: { label:'▶ 続きから', fn:()=>onRichMenu('learn') } },
+    'seg_p1_done':        { text: `📢 配信: 🎊 Phase1 修了\n\nPhase2「実践ワーク」が解放されました！\nKPIと仮説の世界へ進みましょう。`, cta: { label:'▶ Phase2 を始める', fn:()=>onRichMenu('learn') } },
+    'seg_p2_in_progress': { text: `📢 配信: Phase2 中盤 チェックイン\n\nここが一番苦しいパート。コーチに相談しつつ、1ワークずつ進めましょう🔥`, cta: { label:'💬 コーチに相談', fn:()=>handleContact() } }
+  };
+  const m = msgs[segKey];
+  bubble({ badge: 'BC', text: m.text, cls: 'notification' });
+  quickReplies([ { label: m.cta.label, onClick: m.cta.fn }, { label: '閉じる', onClick: () => toast('閉じました'), secondary: true } ]);
+  addTag(`broadcast_${segKey}`);
+}
+
+function cycleVariant() {
+  const order = ['setup','p1_running','p1_done','p2_running','p2_done'];
+  const idx = order.indexOf(state.menuVariant);
+  state.menuVariant = order[(idx + 1) % order.length];
+  renderRichMenu();
+  toast(`RM画像: ${state.menuVariant}`);
+}
+
+function preset(key) {
+  historyStack = [];
+  clearTags();
+  switch (key) {
+    case 'A':
+      state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+      break;
+    case 'B':
+      state = { ...DEFAULT_STATE, initialized: true, p1_skill: 4, p1_skill_step: 'video_2' };
+      addTag('onboarded'); addTag('p1_started');
+      for (let i=1; i<4; i++) { addTag(`p1_sk${i}_pass`); }
+      break;
+    case 'C':
+      state = { ...DEFAULT_STATE, initialized: true, p1_skill: 4, p1_skill_step: 'test' };
+      addTag('onboarded'); addTag('p1_started');
+      for (let i=1; i<4; i++) { addTag(`p1_sk${i}_pass`); }
+      addTag('p1_sk4_v1_done'); addTag('p1_sk4_v2_done');
+      break;
+    case 'D':
+      state = { ...DEFAULT_STATE, initialized: true, p1_skill: 8, p1_skill_step: 'done', current_phase: 1 };
+      addTag('onboarded'); addTag('p1_started'); addTag('p1_all_done');
+      break;
+    case 'E':
+      state = { ...DEFAULT_STATE, initialized: true, p1_skill: 8, p1_skill_step: 'done', current_phase: 2, p2_work: 3, p2_work_step: 'video_1' };
+      addTag('onboarded'); addTag('p1_started'); addTag('p1_all_done');
+      addTag('p2_w1_submitted'); addTag('p2_w2_submitted');
+      break;
+  }
+  clearChat();
+  bubble({ text: `シナリオ "${key}" をロードしました ✨\nリッチメニュー（画像）から操作を確認してください。`, cls: 'notice' });
+  refreshAttrs();
+}
+
+function pushNotification(id) {
+  if (id === 'N-01') {
+    bubble({ badge: 'N-01', text: `🔔 &Yからのお知らせ\n\n昨日は&Yにご登録いただきありがとうございます！\n今日から3ヶ月の学習がスタートします。\n\nまずは最初の1本の動画から。10分で終わります😊`, cls: 'notification' });
+    quickReplies([
+      { label: '▶ 学習を始める', onClick: () => onRichMenu('learn') }
+    ]);
+  } else if (id === 'N-02') {
+    bubble({ badge: 'N-02', text: `⏰ 3日間操作がありません\n\n最後の学習から3日が経過しました。\nあと少しで${state.p1_skill === 0 ? 'スキル1' : 'スキル' + state.p1_skill}が完了します。\n一緒に再スタートしませんか？`, cls: 'notification' });
+    quickReplies([
+      { label: '▶ 続きから再開', onClick: () => onRichMenu('learn') },
+      { label: '💬 コーチに相談', onClick: () => handleContact(), secondary: true }
+    ]);
+  } else if (id === 'N-03') {
+    bubble({ badge: 'N-03', text: `🎉 スキル完了おめでとうございます！\n\nスキル${state.p1_skill}「${(SKILLS[state.p1_skill-1]||{}).name||'—'}」を完了しました。\n次のスキルが解放されています。`, cls: 'notification' });
+    quickReplies([
+      { label: '▶ 次のスキルへ', onClick: () => onRichMenu('learn') },
+      { label: '📊 マイページ', onClick: () => onRichMenu('mypage'), secondary: true }
+    ]);
+  }
+  setScreen(id);
+}
+
+// ====================================================================
+// RICH MENU HANDLERS
+// ====================================================================
+// v3: ホットスポットからの入り口。ロック済みならガイドバブルのみ出す
+function onRichMenuTap(target) {
+  const variant = RM_VARIANTS[state.menuVariant] || RM_VARIANTS.setup;
+  const ic = variant.icons[target];
+  if (ic === 'lock') {
+    const labels = { learn:'学習する', work:'ワーク', mypage:'マイページ', support:'サポート' };
+    bubble({ text: `🔒 「${labels[target]}」は現在ロックされています。\n${target==='work' ? '学習セットアップ後にご利用いただけます。' : target==='mypage' ? '学習開始後に解放されます。' : ''}`, cls: 'notice' });
+    return;
+  }
+  onRichMenu(target);
+}
+
+function onRichMenu(target) {
+  if (target === 'learn') {
+    userSay('📚 学習する');
+    runScenario('sc_learn_enter', () => setTimeout(() => routeLearn(), 200));
+  } else if (target === 'work') {
+    userSay('✍ ワーク');
+    runScenario('sc_work_enter', () => setTimeout(() => routeWork(), 200));
+  } else if (target === 'mypage') {
+    userSay('📊 マイページ');
+    runScenario('sc_mypage_enter', () => setTimeout(() => screenM01(), 200));
+  } else if (target === 'support') {
+    userSay('💬 サポート');
+    runScenario('sc_support_enter', () => setTimeout(() => screenS01(), 200));
+  }
+}
+
+// ワーク主導線 (Work-led flow) — 単独アクセス
+function routeWork() {
+  // 初回未セットアップの場合は L-01 に誘導
+  if (!state.initialized) {
+    bubble({ text: `✍ ワーク入口は学習セットアップ後にご利用いただけます。\nまずは「📚 学習する」から初期設定を行ってください。`, cls: 'notice' });
+    quickReplies([
+      { label: '▶ 学習を始める', onClick: () => onRichMenu('learn') }
+    ]);
+    return;
+  }
+  screenW01();
+}
+
+function routeLearn() {
+  // 初回 or 続きから
+  if (!state.initialized) {
+    screenL01();
+  } else if (state.current_phase === 1 && state.p1_skill_step === 'done' && state.p1_skill >= 8) {
+    // Phase 1 全完了 → D
+    screenL_PatternD();
+  } else if (state.current_phase === 1 && state.p1_skill_step === 'test') {
+    // スキル動画全て視聴後 → C
+    screenL_PatternC();
+  } else if (state.current_phase === 2) {
+    screenL11();
+  } else {
+    // B
+    screenL02();
+  }
+}
+
+// ====================================================================
+// SCREENS — Learning flow
+// ====================================================================
+
+// L-01 オンボーディング（パターンA: 初回）
+function screenL01() {
+  setScreen('L-01');
+  historyStack.push('L-01');
+  bubble({ badge:'L-01', text: `🎉 ようこそ！&Yオンラインビジネススクールへ\n\nこれから3ヶ月の学習が始まります。\n進め方は簡単です。\n\n① 動画を見る（1本10〜15分）\n② ワーク・テストに取り組む\n③ 合格したら次のスキルへ\n\n困った時はいつでも「💬 サポート」から相談できます。\n\nそれでは、最初の学習を始めましょう！` });
+  quickReplies([
+    { label: '▶ Phase 1 を始める', onClick: () => {
+      state.initialized = true;
+      state.current_phase = 1;
+      state.p1_skill = 1;
+      state.p1_skill_step = 'video_1';
+      addTag('onboarded');
+      addTag('p1_started');
+      refreshAttrs();
+      screenL05();
+    }}
+  ]);
+}
+
+// L-02 学習再開画面（パターンB）
+function screenL02() {
+  setScreen('L-02');
+  historyStack.push('L-02');
+  const skill = SKILLS[state.p1_skill - 1];
+  const stepText = state.p1_skill_step === 'video_1' ? '動画1 から再開' :
+                   state.p1_skill_step === 'video_2' ? '動画2 から再開' :
+                   state.p1_skill_step === 'test' ? '確認テスト から再開' : '続きから';
+  bubble({ badge:'L-02', text: `おかえりなさい！\n前回の続き：\n\n📚 Phase ${state.current_phase} ＞ スキル${skill.id}「${skill.name}」\n→ ${stepText}` });
+  quickReplies([
+    { label: '▶ 続きから学習する', onClick: () => screenL05() },
+    { label: '📋 スキル一覧を見る', onClick: () => screenL04(), secondary: true },
+    { label: '🧠 思考力T', onClick: () => screenL10(), secondary: true }
+  ]);
+}
+
+// L-03 Phase選択
+function screenL03() {
+  setScreen('L-03');
+  historyStack.push('L-03');
+  bubble({ badge:'L-03', text: `どちらのフェーズに進みますか？` });
+  quickReplies([
+    { label: 'Phase 1 ビジネス基礎力', onClick: () => { state.current_phase = 1; refreshAttrs(); screenL04(); } },
+    { label: 'Phase 2 実践ワーク', onClick: () => {
+        if (state.p1_skill >= 8 && state.p1_skill_step === 'done') {
+          state.current_phase = 2; refreshAttrs(); screenL11();
+        } else {
+          bubble({ text: `⚠ Phase 2 はまだロックされています。\nPhase 1 を全て完了すると解放されます。`, cls: 'notice' });
+        }
+      }, secondary: true }
+  ]);
+}
+
+// L-04 Phase1 スキル一覧
+function screenL04() {
+  setScreen('L-04');
+  historyStack.push('L-04');
+  let html = `<b>━━ Phase 1 ビジネス基礎力 ━━</b><br><br>`;
+  SKILLS.forEach(s => {
+    const isDone = s.id < state.p1_skill || (s.id === state.p1_skill && state.p1_skill_step === 'done');
+    const isCurrent = s.id === state.p1_skill && state.p1_skill_step !== 'done';
+    const isLocked = s.id > state.p1_skill;
+    const icon = isDone ? '✅' : isCurrent ? '▶' : '🔒';
+    const cls = isDone ? '' : isCurrent ? 'current' : 'locked';
+    html += `<div class="skill-row ${cls}"><span class="icon">${icon}</span><span class="idx">${s.id}.</span>${s.name}${isCurrent ? ' <small>← 学習中</small>' : ''}</div>`;
+  });
+  html += `<br><small style="color:#888;">※ 前のスキルを完了すると次が解放されます</small>`;
+  bubble({ badge:'L-04', html });
+  const btns = [
+    { label: `▶ スキル${state.p1_skill}の続きへ`, onClick: () => screenL05() }
+  ];
+  if (state.current_phase === 1) {
+    btns.push({ label: '🧠 思考力トレーニング', onClick: () => screenL10(), secondary: true });
+  }
+  btns.push({ label: '🔙 戻る', onClick: () => goBack(), secondary: true });
+  quickReplies(btns);
+}
+
+// L-05 スキル学習画面
+function screenL05() {
+  setScreen('L-05');
+  historyStack.push('L-05');
+  const skill = SKILLS[state.p1_skill - 1];
+  let html = `<b>【スキル${skill.id}: ${skill.name}】</b><br><br>`;
+  skill.videos.forEach((v, i) => {
+    const watched = state.p1_skill_step === 'video_2' && i === 0;
+    const watchedAll = state.p1_skill_step === 'test';
+    const mark = (watchedAll || watched) ? '✅' : '🎬';
+    html += `${mark} <b>動画${i+1}:</b> 「${v.title}」<br><small>約${v.duration}</small><br><br>`;
+  });
+  bubble({ badge:'L-05', html });
+  // next step buttons
+  if (state.p1_skill_step === 'video_1') {
+    quickReplies([
+      { label: '▶ 動画1を再生', onClick: () => screenL06(0) },
+      { label: '📋 スキル一覧へ', onClick: () => screenL04(), secondary: true }
+    ]);
+  } else if (state.p1_skill_step === 'video_2') {
+    quickReplies([
+      { label: '▶ 動画2を再生', onClick: () => screenL06(1) },
+      { label: '📋 スキル一覧へ', onClick: () => screenL04(), secondary: true }
+    ]);
+  } else if (state.p1_skill_step === 'test') {
+    quickReplies([
+      { label: '📝 確認テストを受ける', onClick: () => screenL08() },
+      { label: '🎬 動画を見直す', onClick: () => screenL06(0), secondary: true }
+    ]);
+  } else if (state.p1_skill_step === 'done') {
+    quickReplies([
+      { label: '▶ 次のスキルへ', onClick: () => {
+          if (state.p1_skill < 8) {
+            state.p1_skill += 1;
+            state.p1_skill_step = 'video_1';
+            refreshAttrs();
+            screenL05();
+          } else {
+            state.current_phase = 2;
+            refreshAttrs();
+            screenL_PatternD();
+          }
+        }}
+    ]);
+  }
+}
+
+// L-06 動画再生（モーダル）
+function screenL06(videoIdx) {
+  setScreen('L-06');
+  const skill = SKILLS[state.p1_skill - 1];
+  const v = skill.videos[videoIdx];
+  openModal({
+    liffName: 'Video LIFF',
+    progress: 0,
+    headerTitle: `🎬 スキル${skill.id} 動画${videoIdx+1}`,
+    body: `
+      <div class="video-mock" id="video-mock">▶</div>
+      <div class="video-progress"><div class="video-progress-bar" id="video-bar"></div></div>
+      <div style="font-weight:700;font-size:14px;margin-bottom:4px;">${v.title}</div>
+      <div style="font-size:12px;color:#888;">約${v.duration}</div>
+      <div style="font-size:11px;color:#aaa;margin-top:8px;line-height:1.5;">
+        ※ 本番ではYouTube/Vimeo等のミニアプリとしてLINE内でWebビュー表示されます。<br>
+        プロトタイプでは再生ボタンをタップすると視聴完了までシミュレートされます。
+      </div>
+    `,
+    footer: `
+      <button class="btn-primary" id="btn-complete" disabled>視聴完了（アンロック待ち）</button>
+      <button class="btn-secondary" onclick="closeModal()">⏸ 後で視聴する</button>
+    `,
+    onReady: () => {
+      let pct = 0;
+      const bar = document.getElementById('video-bar');
+      const btn = document.getElementById('btn-complete');
+      document.getElementById('video-mock').onclick = () => {
+        if (pct >= 100) return;
+        const iv = setInterval(() => {
+          pct = Math.min(100, pct + 10);
+          bar.style.width = pct + '%';
+          // LIFFヘッダの進捗バーも同期
+          const lb = document.querySelector('.liff-progress-line-bar');
+          if (lb) lb.style.width = pct + '%';
+          if (pct >= 100) {
+            clearInterval(iv);
+            btn.disabled = false;
+            btn.textContent = '✓ 視聴完了';
+          }
+        }, 180);
+      };
+      btn.onclick = () => { closeModal(); onVideoComplete(videoIdx); };
+    }
+  });
+}
+
+function onVideoComplete(videoIdx) {
+  setScreen('L-07');
+  historyStack.push('L-07');
+  const skill = SKILLS[state.p1_skill - 1];
+  addTag(`p1_sk${skill.id}_v${videoIdx+1}_done`);
+  bubble({ badge:'L-07', text: `動画${videoIdx+1}を視聴しました！お疲れさまです✨` });
+  const isLast = videoIdx >= skill.videos.length - 1;
+  if (isLast) {
+    state.p1_skill_step = 'test';
+    refreshAttrs();
+    bubble({ text: `全ての動画を見終えました！🎉\n\nそれでは、確認テストに挑戦しましょう。\n10問中8問以上正解で合格です。` });
+    quickReplies([
+      { label: '📝 テストを受ける', onClick: () => screenL08() },
+      { label: '⏸ 後で受ける', onClick: () => toast('マイページで再開できます'), secondary: true }
+    ]);
+  } else {
+    state.p1_skill_step = 'video_' + (videoIdx + 2);
+    refreshAttrs();
+    const next = skill.videos[videoIdx + 1];
+    bubble({ text: `次は動画${videoIdx + 2}です。\n\n🎬 動画${videoIdx + 2}: 「${next.title}」\n約${next.duration}` });
+    quickReplies([
+      { label: `▶ 動画${videoIdx + 2}を再生する`, onClick: () => screenL06(videoIdx + 1) },
+      { label: '⏸ 今日はここまで', onClick: () => toast('属性を保存しました。また続きから再開できます'), secondary: true }
+    ]);
+  }
+}
+
+// L-08 確認テスト（3問でデモ）
+const MOCK_TEST_QUESTIONS = [
+  { q: 'このスキルの学習目的として正しいのは？', choices: ['A. 知識の記憶', 'B. 行動変容', 'C. 資格取得'], correct: 1 },
+  { q: '動画の核心メッセージは？', choices: ['A. 一人で頑張る', 'B. 体系的に積み上げる', 'C. とにかく量をこなす'], correct: 1 },
+  { q: '学習したことを定着させる最良の方法は？', choices: ['A. 寝て忘れる', 'B. 誰かに教える', 'C. 何度も読み返す'], correct: 1 }
+];
+
+let _testScore = 0;
+let _testIdx = 0;
+function screenL08() {
+  setScreen('L-08');
+  historyStack.push('L-08');
+  _testScore = 0;
+  _testIdx = 0;
+  bubble({ badge:'L-08', text: `📝 確認テスト開始！\n全${MOCK_TEST_QUESTIONS.length}問、${Math.ceil(MOCK_TEST_QUESTIONS.length * 0.8)}問以上正解で合格です。\n\n※ プロトタイプでは3問に短縮しています。` });
+  askNextTestQuestion();
+}
+function askNextTestQuestion() {
+  if (_testIdx >= MOCK_TEST_QUESTIONS.length) {
+    // finish
+    screenL09();
+    return;
+  }
+  const q = MOCK_TEST_QUESTIONS[_testIdx];
+  bubble({ text: `【Q${_testIdx + 1}】${q.q}` });
+  const btns = q.choices.map((c, i) => ({
+    label: c,
+    onClick: () => {
+      if (i === q.correct) { _testScore++; toast('正解 ✓'); }
+      else toast('不正解 ✗');
+      _testIdx++;
+      setTimeout(askNextTestQuestion, 300);
+    },
+    secondary: i !== q.correct ? false : false
+  }));
+  quickReplies(btns);
+}
+
+// L-09 テスト結果
+function screenL09() {
+  setScreen('L-09');
+  historyStack.push('L-09');
+  const total = MOCK_TEST_QUESTIONS.length;
+  const rate = _testScore / total;
+  const passed = rate >= 0.8;
+  if (passed) {
+    const nextSkill = state.p1_skill + 1;
+    addTag(`p1_sk${state.p1_skill}_pass`);
+    bubble({ badge:'L-09', text: `🎉 合格おめでとうございます！\nスコア: ${_testScore}/${total}\n\nスキル${state.p1_skill}「${SKILLS[state.p1_skill-1].name}」を完了しました。` });
+    if (state.p1_skill < 8) {
+      bubble({ text: `スキル${nextSkill}「${SKILLS[nextSkill-1].name}」が解放されました！` });
+      // Progress state
+      state.p1_skill_step = 'done';
+      // Automatically unlock next
+      setTimeout(() => {
+        state.p1_skill = nextSkill;
+        state.p1_skill_step = 'video_1';
+        refreshAttrs();
+      }, 100);
+      quickReplies([
+        { label: `▶ スキル${nextSkill}に進む`, onClick: () => screenL05() },
+        { label: '📊 マイページを見る', onClick: () => screenM01(), secondary: true },
+        { label: '⏸ 今日はここまで', onClick: () => toast('お疲れさまでした ✨'), secondary: true }
+      ]);
+    } else {
+      // 全スキル完了
+      state.p1_skill_step = 'done';
+      addTag('p1_all_done');
+      refreshAttrs();
+      bubble({ text: `🎊 Phase 1 全スキル完了！\nPhase 2 が解放されました。` });
+      quickReplies([
+        { label: '▶ Phase 2 を始める', onClick: () => screenL_PatternD() },
+        { label: '📊 マイページ', onClick: () => screenM01(), secondary: true }
+      ]);
+    }
+  } else {
+    bubble({ badge:'L-09', text: `😢 もう少しでした！\nスコア: ${_testScore}/${total}\n合格ラインは8割です。\n動画を見直してから再挑戦しましょう。` });
+    quickReplies([
+      { label: '🎬 動画を見直す', onClick: () => screenL06(0) },
+      { label: '🔁 もう一度テスト', onClick: () => screenL08(), secondary: true }
+    ]);
+  }
+}
+
+// L-10 思考力トレーニング
+function screenL10() {
+  setScreen('L-10');
+  historyStack.push('L-10');
+  bubble({ badge:'L-10', text: `🧠 思考力トレーニング\n\n3つのルートを並行して進められます。` });
+  let html = `<div class="flex-card" style="max-width:100%;">
+    <div class="flex-hero">ルートA: 概念的思考力</div>
+    <div class="flex-body">
+      <div class="flex-title">進捗: ${state.p1_thinking_a}/5</div>
+      <div class="flex-sub">例題を解きながら抽象度を上げる練習</div>
+    </div>
+  </div>`;
+  flexCard({
+    hero: 'ルートA: 概念的思考力',
+    title: `進捗: ${state.p1_thinking_a}/5`,
+    sub: '例題を解きながら抽象度を上げる練習',
+    buttons: [
+      { label: 'ルートAの次の例題へ', onClick: () => {
+          if (state.p1_thinking_a < 5) { state.p1_thinking_a++; refreshAttrs(); toast(`ルートA 完了: ${state.p1_thinking_a}/5`); } else toast('ルートAは既に完了しています');
+        } }
+    ]
+  });
+  flexCard({
+    hero: 'ルートB: クリティカルシンキング',
+    title: `進捗: ${state.p1_thinking_b}/5`,
+    sub: '問いを磨き、論理の穴を見抜く練習',
+    buttons: [
+      { label: 'ルートBの次の例題へ', onClick: () => {
+          if (state.p1_thinking_b < 5) { state.p1_thinking_b++; refreshAttrs(); toast(`ルートB 完了: ${state.p1_thinking_b}/5`); } else toast('ルートBは既に完了しています');
+        } }
+    ]
+  });
+  flexCard({
+    hero: 'ルートC: 両者の違い',
+    title: `進捗: ${state.p1_thinking_c}/5`,
+    sub: 'A・B完了後に解放（比較演習）',
+    buttons: [
+      { label: (state.p1_thinking_a >= 5 && state.p1_thinking_b >= 5) ? 'ルートCに挑戦' : '🔒 A・B完了で解放', onClick: () => {
+          if (state.p1_thinking_a >= 5 && state.p1_thinking_b >= 5) {
+            if (state.p1_thinking_c < 5) { state.p1_thinking_c++; refreshAttrs(); toast(`ルートC 完了: ${state.p1_thinking_c}/5`); }
+          } else toast('まずはルートAとBを完了しましょう');
+        } }
+    ]
+  });
+  quickReplies([
+    { label: '🔙 戻る', onClick: () => goBack(), secondary: true }
+  ]);
+}
+
+// ====================================================================
+// W-01 ワーク主導線ハブ（ワーク単独入口）
+// ====================================================================
+function screenW01() {
+  setScreen('W-01');
+  historyStack.push('W-01');
+  const phase1Done = state.p1_skill >= 8 && state.p1_skill_step === 'done';
+
+  let html = `<b>✍ ワーク入口</b><br>
+    <small style="color:#777;">学習内容を定着・言語化・実践に変える場所です。動画を見返さずワークだけ進めることもできます。</small><br><br>`;
+
+  // Phase 1 中の思考力T（Phase1のワーク枠）
+  html += `<b>━━ Phase 1 中のワーク ━━</b><br>`;
+  html += `🧠 思考力トレーニング（3ルート）<br>`;
+  html += `　ルートA: 概念的思考力 ${state.p1_thinking_a}/5<br>`;
+  html += `　ルートB: クリティカルシンキング ${state.p1_thinking_b}/5<br>`;
+  html += `　ルートC: 両者の違い ${(state.p1_thinking_a>=5 && state.p1_thinking_b>=5) ? state.p1_thinking_c+'/5' : '🔒 A・B完了で解放'}<br>`;
+  html += `<br>`;
+
+  // Phase 2 ワーク
+  html += `<b>━━ Phase 2 実践ワーク ━━</b><br>`;
+  if (!phase1Done && state.current_phase === 1) {
+    html += `🔒 <small>Phase 1 全スキル完了で解放されます</small><br>`;
+  } else {
+    WORKS.forEach(w => {
+      const isDone = w.id < state.p2_work || (w.id === state.p2_work && state.p2_work_step === 'done');
+      const isCurrent = w.id === state.p2_work && state.p2_work_step !== 'done';
+      const icon = isDone ? '✅' : isCurrent ? '▶' : '🔒';
+      const suffix = isDone ? ' <small style="color:#888;">（再提出可）</small>' : isCurrent ? ' <small>← 取組中</small>' : '';
+      html += `${icon} W${w.id}: ${w.name}${suffix}<br>`;
+    });
+  }
+  bubble({ badge:'W-01', html });
+
+  // Action buttons (dual rail: learn-led vs work-led)
+  const btns = [];
+  btns.push({ label: '🧠 思考力Tに取り組む', onClick: () => screenL10() });
+
+  if (phase1Done || state.current_phase === 2) {
+    // Phase 2 進行可
+    if (state.p2_work === 0) { state.p2_work = 1; state.p2_work_step = 'video_1'; refreshAttrs(); }
+    const curW = state.p2_work;
+    btns.push({ label: `▶ W${curW}の続きへ`, onClick: () => {
+      state.current_phase = 2;
+      refreshAttrs();
+      screenL12();
+    }});
+    // 再提出（完了済みワークに戻る）
+    if (state.p2_work > 1 || state.p2_work_step === 'done') {
+      btns.push({ label: '🔁 完了ワークに再入場', onClick: () => showWorkReentry(), secondary: true });
+    }
+    btns.push({ label: '📋 ワーク一覧詳細', onClick: () => screenL11(), secondary: true });
+  } else {
+    btns.push({ label: '📚 学習に戻って動画から', onClick: () => routeLearn(), secondary: true });
+  }
+  btns.push({ label: '🔙 戻る', onClick: () => goBack(), secondary: true });
+  quickReplies(btns);
+}
+
+function showWorkReentry() {
+  bubble({ text: `🔁 完了ワークへの再入場\n\n再提出や振り返りで取り組みたいワークを選んでください。` });
+  const completed = WORKS.filter(w => w.id < state.p2_work || (w.id === state.p2_work && state.p2_work_step === 'done'));
+  if (completed.length === 0) {
+    bubble({ text: `まだ完了したワークがありません。`, cls: 'notice' });
+    return;
+  }
+  const btns = completed.map(w => ({
+    label: `W${w.id}: ${w.name}`,
+    onClick: () => {
+      // 既存のstateは保ち、ワーク閲覧用に一時表示
+      bubble({ text: `📂 W${w.id}「${w.name}」を再オープンします。\n（再提出モード — 回答は上書きされません）`, cls: 'notice' });
+      const prevWork = state.p2_work;
+      const prevStep = state.p2_work_step;
+      state.p2_work = w.id;
+      state.p2_work_step = 'video_1';
+      refreshAttrs();
+      setTimeout(() => screenL12(), 300);
+      // 注: 再提出モードは完了後に state を元に戻す処理が本来必要ですが、プロトタイプでは省略
+    },
+    secondary: true
+  }));
+  btns.push({ label: '🔙 戻る', onClick: () => screenW01(), secondary: true });
+  quickReplies(btns);
+}
+
+// L-11 Phase2 ワーク一覧
+function screenL11() {
+  setScreen('L-11');
+  historyStack.push('L-11');
+  let html = `<b>━━ Phase 2 実践ワーク ━━</b><br><br>`;
+  WORKS.forEach(w => {
+    const isDone = w.id < state.p2_work || (w.id === state.p2_work && state.p2_work_step === 'done');
+    const isCurrent = w.id === state.p2_work && state.p2_work_step !== 'done';
+    const isLocked = w.id > state.p2_work;
+    const icon = isDone ? '✅' : isCurrent ? '▶' : '🔒';
+    const cls = isDone ? '' : isCurrent ? 'current' : 'locked';
+    html += `<div class="skill-row ${cls}"><span class="icon">${icon}</span><span class="idx">W${w.id}:</span>${w.name}${isCurrent ? ' <small>← 取り組み中</small>' : ''}</div>`;
+  });
+  html += `<br><small style="color:#888;">※ ワークは順序固定で進めます</small>`;
+  bubble({ badge:'L-11', html });
+  const current = state.p2_work || 1;
+  if (state.p2_work === 0) { state.p2_work = 1; state.p2_work_step = 'video_1'; refreshAttrs(); }
+  quickReplies([
+    { label: `▶ W${state.p2_work}の続きへ`, onClick: () => screenL12() },
+    { label: '📊 マイページ', onClick: () => screenM01(), secondary: true }
+  ]);
+}
+
+// L-12 ワーク学習画面
+let _workQuestionIdx = 0;
+let _workAnswers = [];
+function screenL12() {
+  setScreen('L-12');
+  historyStack.push('L-12');
+  const w = WORKS[state.p2_work - 1];
+  let html = `<b>【W${w.id}: ${w.name}】</b><br><br>まず動画を見て理解を深めましょう。<br><br>`;
+  w.videos.forEach((v, i) => {
+    html += `🎬 <b>動画${i+1}:</b> 「${v.title}」<br><small>約${v.duration}</small><br><br>`;
+  });
+  bubble({ badge:'L-12', html });
+  quickReplies([
+    { label: '▶ 動画を再生する', onClick: () => openWorkVideoModal() }
+  ]);
+}
+
+function openWorkVideoModal() {
+  const w = WORKS[state.p2_work - 1];
+  const v = w.videos[0];
+  openModal({
+    liffName: 'Video LIFF',
+    progress: 0,
+    headerTitle: `🎬 W${w.id} 動画`,
+    body: `
+      <div class="video-mock" id="video-mock">▶</div>
+      <div class="video-progress"><div class="video-progress-bar" id="video-bar"></div></div>
+      <div style="font-weight:700;font-size:14px;">${v.title}</div>
+      <div style="font-size:12px;color:#888;">約${v.duration}</div>
+    `,
+    footer: `<button class="btn-primary" id="btn-complete" disabled>視聴完了</button>`,
+    onReady: () => {
+      let pct = 0;
+      const bar = document.getElementById('video-bar');
+      const btn = document.getElementById('btn-complete');
+      document.getElementById('video-mock').onclick = () => {
+        const iv = setInterval(() => {
+          pct = Math.min(100, pct + 12);
+          bar.style.width = pct + '%';
+          if (pct >= 100) { clearInterval(iv); btn.disabled = false; btn.textContent = '✓ 視聴完了'; }
+        }, 150);
+      };
+      btn.onclick = () => { closeModal(); onWorkVideoComplete(); };
+    }
+  });
+}
+
+function onWorkVideoComplete() {
+  state.p2_work_step = 'questions';
+  refreshAttrs();
+  _workQuestionIdx = 0;
+  _workAnswers = [];
+  bubble({ text: `動画を見終えました！✨\nここからが本番です。\n\n設問に取り組みましょう。` });
+  setTimeout(askNextWorkQuestion, 400);
+}
+
+function askNextWorkQuestion() {
+  const w = WORKS[state.p2_work - 1];
+  if (_workQuestionIdx >= w.questions.length) {
+    // submit
+    onWorkSubmit();
+    return;
+  }
+  const q = w.questions[_workQuestionIdx];
+  bubble({ text: `【設問${state.p2_work}-${_workQuestionIdx+1}: ${q.label}】\n\n${q.sub}\n\n下のボタンから回答を入力してください 👇` });
+  quickReplies([
+    { label: '📝 回答を入力する', onClick: () => openWorkAnswerModal(q) }
+  ]);
+}
+
+function openWorkAnswerModal(q) {
+  openModal({
+    liffName: 'Form LIFF',
+    headerTitle: `📝 回答入力: ${q.label}`,
+    body: `
+      <div class="form-label">${q.label}</div>
+      <div class="form-sub">${q.sub}</div>
+      <textarea class="form-textarea" id="ans-input" placeholder="ここに回答を入力..."></textarea>
+    `,
+    footer: `
+      <button class="btn-primary" id="btn-submit-ans">送信する</button>
+      <button class="btn-secondary" onclick="closeModal()">キャンセル</button>
+    `,
+    onReady: () => {
+      document.getElementById('btn-submit-ans').onclick = () => {
+        const v = document.getElementById('ans-input').value.trim();
+        if (!v) { toast('回答を入力してください'); return; }
+        _workAnswers.push({ q: q.label, a: v });
+        closeModal();
+        userSay(v.length > 40 ? v.slice(0,40) + '…' : v);
+        bubble({ text: `回答を受け付けました ✓\n担当コーチに共有される予定です。` });
+        _workQuestionIdx++;
+        setTimeout(askNextWorkQuestion, 500);
+      };
+    }
+  });
+}
+
+function onWorkSubmit() {
+  setScreen('L-13');
+  historyStack.push('L-13');
+  state.p2_work_step = 'done';
+  addTag(`p2_w${state.p2_work}_submitted`);
+  refreshAttrs();
+  bubble({ badge:'L-13', text: `🎉 W${state.p2_work}の全設問が完了しました！\n\n回答内容は担当コーチ（${state.coach_name}）に共有されます。\nフィードバックをお待ちください。` });
+  // next work
+  if (state.p2_work < 5) {
+    const next = state.p2_work + 1;
+    setTimeout(() => {
+      state.p2_work = next;
+      state.p2_work_step = 'video_1';
+      refreshAttrs();
+    }, 100);
+    quickReplies([
+      { label: `▶ W${state.p2_work + 1} に進む`, onClick: () => screenL12() },
+      { label: '📊 マイページを見る', onClick: () => screenM01(), secondary: true },
+      { label: '⏸ 今日はここまで', onClick: () => toast('お疲れさまでした ✨'), secondary: true }
+    ]);
+  } else {
+    addTag('p2_all_done');
+    addTag('graduated');
+    bubble({ text: `🏆 Phase 2 全ワーク完了おめでとうございます！\n&Yオンラインビジネススクールの全カリキュラムを修了しました。` });
+    quickReplies([
+      { label: '📊 マイページ', onClick: () => screenM01() }
+    ]);
+  }
+}
+
+// パターンC: スキルの動画を全て視聴完了し、テスト前
+function screenL_PatternC() {
+  const skill = SKILLS[state.p1_skill - 1];
+  bubble({ badge:'L-02', text: `スキル${skill.id}「${skill.name}」の動画を\n全て見終えました！✨\n\n次のステップ：確認テスト\n80点以上で合格 → スキル${state.p1_skill+1}が解放されます` });
+  quickReplies([
+    { label: '📝 確認テストを受ける', onClick: () => screenL08() },
+    { label: '📋 スキル一覧を見る', onClick: () => screenL04(), secondary: true }
+  ]);
+}
+
+// パターンD: Phase 1 完了 → Phase 2 開始前
+function screenL_PatternD() {
+  setScreen('L-03');
+  historyStack.push('L-03');
+  bubble({ badge:'L-02', text: `🎊 Phase 1 全スキル完了おめでとうございます！\n\nPhase 2「判断力を養う思考教育」が解放されました。\n5つのワーク（W1〜W5）を通じて、学んだ知識を「使える力」に変えます。` });
+  quickReplies([
+    { label: '▶ Phase 2 を始める', onClick: () => {
+        state.current_phase = 2;
+        if (state.p2_work === 0) { state.p2_work = 1; state.p2_work_step = 'video_1'; }
+        refreshAttrs();
+        screenL11();
+      } },
+    { label: '📚 Phase 1 を振り返る', onClick: () => screenL04(), secondary: true }
+  ]);
+}
+
+// ====================================================================
+// M-01 マイページ
+// ====================================================================
+function screenM01() {
+  setScreen('M-01');
+  historyStack.push('M-01');
+  const skill = SKILLS[state.p1_skill - 1];
+  const completedSkills = state.p1_skill - 1 + (state.p1_skill_step === 'done' ? 1 : 0);
+  const stepMap = { video_1: '動画1', video_2: '動画2', test: '確認テスト', done: '完了' };
+  let html = `<b>📊 マイページ</b><br><br>`;
+  html += `<b>【学習進捗】</b><br>`;
+  if (state.current_phase === 1) {
+    html += `Phase 1: スキル${state.p1_skill}まで進行中（${completedSkills}/8 完了）<br>`;
+    html += `Phase 2: Phase 1 完了後に開始<br>`;
+  } else {
+    html += `Phase 1: ✅ 完了（8/8）<br>`;
+    html += `Phase 2: W${state.p2_work}まで進行中（${state.p2_work - 1 + (state.p2_work_step === 'done' ? 1 : 0)}/5 完了）<br>`;
+  }
+  html += `<br><b>【次のステップ】</b><br>`;
+  if (state.current_phase === 1) {
+    html += `→ スキル${skill.id}「${skill.name}」の${stepMap[state.p1_skill_step]||'続き'}を視聴`;
+  } else {
+    const w = WORKS[Math.max(0, state.p2_work - 1)];
+    html += `→ W${w.id}「${w.name}」に取り組む`;
+  }
+  html += `<br><br><b>【担当コーチ】</b><br>👤 ${state.coach_name}`;
+  bubble({ badge:'M-01', html });
+  quickReplies([
+    { label: '📋 スキル一覧を見る', onClick: () => screenM03() },
+    { label: '✍ ワーク入口へ', onClick: () => screenW01(), secondary: true },
+    { label: '🧠 思考力T進捗', onClick: () => screenM02(), secondary: true },
+    { label: '👤 コーチに相談する', onClick: () => handleContact(), secondary: true },
+    { label: '🔙 戻る', onClick: () => goBack(), secondary: true }
+  ]);
+}
+
+// M-02 思考力T進捗
+function screenM02() {
+  setScreen('M-02');
+  historyStack.push('M-02');
+  bubble({ badge:'M-02', text: `🧠 思考力トレーニング 進捗\n\nルートA: 概念的思考力\n  例題: ${state.p1_thinking_a}/5 完了\n  確認テスト: ${state.p1_thinking_a >= 5 ? '受験可' : 'まだ'}\n\nルートB: クリティカルシンキング\n  例題: ${state.p1_thinking_b}/5 完了\n  確認テスト: ${state.p1_thinking_b >= 5 ? '受験可' : 'まだ'}\n\nルートC: 両者の違い\n  ${(state.p1_thinking_a >= 5 && state.p1_thinking_b >= 5) ? '🔓 解放済み' : '🔒 ルートA・B完了後に解放'}` });
+  quickReplies([
+    { label: '▶ ルートAの続きへ', onClick: () => screenL10() },
+    { label: '▶ ルートBを始める', onClick: () => screenL10(), secondary: true },
+    { label: '🔙 戻る', onClick: () => goBack(), secondary: true }
+  ]);
+}
+
+// M-03 スキル一覧（参照）
+function screenM03() {
+  setScreen('M-03');
+  screenL04();
+}
+
+// ====================================================================
+// SUPPORT
+// ====================================================================
+function screenS01() {
+  setScreen('S-01');
+  historyStack.push('S-01');
+  bubble({ badge:'S-01', text: `💬 サポートメニュー\n\n困ったことがありますか？\n以下からお選びください。` });
+  quickReplies([
+    { label: '❓ よくある質問', onClick: () => screenS02() },
+    { label: '🤖 AIに質問する', onClick: () => handleAIQuestion(), secondary: true },
+    { label: '👤 コーチに相談する', onClick: () => handleContact(), secondary: true },
+    { label: '📩 お問い合わせ（不具合等）', onClick: () => screenS03(), secondary: true }
+  ]);
+}
+
+function screenS02() {
+  setScreen('S-02');
+  historyStack.push('S-02');
+  bubble({ badge:'S-02', text: `❓ よくある質問\n\nどのカテゴリですか？` });
+  // Carousel
+  const cats = [
+    { cat: '学習の進め方', qs: [
+      { q: '動画は何回でも見られますか？', a: 'はい、何度でも視聴可能です。' },
+      { q: 'スマホだけで学習できますか？', a: 'はい、全ての機能がLINEから利用できます。' }
+    ]},
+    { cat: 'テスト・ワーク', qs: [
+      { q: 'テストは再受験できますか？', a: '何度でも再受験可能です。80点以上で合格になります。' },
+      { q: 'ワークの回答はコーチに見られますか？', a: '担当コーチに共有されフィードバックが届きます。' }
+    ]},
+    { cat: 'お支払い', qs: [
+      { q: '分割払いは可能ですか？', a: '最大12回まで分割可能です。詳細はお問い合わせください。' }
+    ]},
+    { cat: '操作方法', qs: [
+      { q: '続きから再開するには？', a: 'リッチメニュー「📚 学習する」をタップすると前回の続きから再開できます。' },
+      { q: 'ワークだけ取り組みたい時は？', a: 'リッチメニュー「✍ ワーク」から、動画を見返さずワークだけに単独アクセスできます。' }
+    ]}
+  ];
+  const btns = cats.map(c => ({ label: c.cat, onClick: () => showFaqList(c) }));
+  btns.push({ label: '🔙 戻る', onClick: () => goBack(), secondary: true });
+  quickReplies(btns);
+}
+
+function showFaqList(c) {
+  bubble({ text: `📂 ${c.cat}\n\n質問を選んでください。` });
+  const btns = c.qs.map(q => ({
+    label: q.q,
+    onClick: () => {
+      bubble({ text: `Q. ${q.q}\n\nA. ${q.a}`, cls: 'notice' });
+      quickReplies([
+        { label: '✓ 解決した', onClick: () => { bubble({ text: 'ありがとうございます 😊' }); }, },
+        { label: '❌ 解決しなかった', onClick: () => handleContact(), secondary: true }
+      ]);
+    }
+  }));
+  btns.push({ label: '🔙 カテゴリ選択に戻る', onClick: () => screenS02(), secondary: true });
+  quickReplies(btns);
+}
+
+function screenS03() {
+  setScreen('S-03');
+  historyStack.push('S-03');
+  bubble({ badge:'S-03', text: `📩 お問い合わせフォーム\n\n不具合や運営へのご相談はこちらからどうぞ。\n内容に応じてコーチ / カスタマーサポートが対応します。` });
+  quickReplies([
+    { label: '📝 フォームに入力', onClick: () => openContactForm('general') },
+    { label: '🔙 戻る', onClick: () => goBack(), secondary: true }
+  ]);
+}
+
+function handleContact() {
+  setScreen('S-03');
+  bubble({ text: `👤 担当コーチ: ${state.coach_name}\n\nどうしますか？` });
+  quickReplies([
+    { label: '💬 チャットで相談する', onClick: () => openContactForm('chat') },
+    { label: '📅 1on1面談を予約する', onClick: () => {
+        bubble({ text: `📅 1on1面談予約（プロトタイプ）\n\n本番では外部カレンダー連携 or ミニアプリで日程を選択できます。`, cls: 'notice' });
+      }, secondary: true }
+  ]);
+}
+
+function handleAIQuestion() {
+  bubble({ text: `🤖 AIに質問する\n\n学習内容についてのご質問をテキストで入力してください。GPT連携のAIアシスタントがお答えします。\n\n回答できない場合は「コーチに相談してみてください」と案内します。` });
+  quickReplies([
+    { label: '📝 質問を入力する', onClick: () => openContactForm('ai') }
+  ]);
+}
+
+function openContactForm(type) {
+  const headers = { chat: '💬 コーチへチャット', ai: '🤖 AIへ質問', general: '📩 お問い合わせ' };
+  openModal({
+    liffName: type === 'ai' ? 'AI LIFF' : 'Form LIFF',
+    headerTitle: headers[type] || '📩 お問い合わせ',
+    body: `
+      <div class="form-label">内容</div>
+      <div class="form-sub">${type === 'ai' ? '学習内容に関する質問を記入してください' : '相談・質問・不具合の内容をお書きください'}</div>
+      <textarea class="form-textarea" id="contact-input" placeholder="ここに入力..."></textarea>
+    `,
+    footer: `
+      <button class="btn-primary" id="btn-send">送信する</button>
+      <button class="btn-secondary" onclick="closeModal()">キャンセル</button>
+    `,
+    onReady: () => {
+      document.getElementById('btn-send').onclick = () => {
+        const v = document.getElementById('contact-input').value.trim();
+        if (!v) { toast('内容を入力してください'); return; }
+        closeModal();
+        userSay(v);
+        setTimeout(() => {
+          if (type === 'ai') {
+            bubble({ text: `🤖 AIアシスタント\n\nご質問ありがとうございます。現時点ではプロトタイプのため実際の回答は生成されませんが、本番ではGPT連携のAIが回答します。\n\n解決しない場合はコーチに繋ぎますので、お気軽にどうぞ😊` });
+          } else if (type === 'chat') {
+            bubble({ text: `✉ ${state.coach_name}コーチに送信しました！\n返信まで最大24時間ほどお待ちください。` });
+          } else {
+            bubble({ text: `✉ カスタマーサポートに送信しました！\n営業日中にご連絡差し上げます。` });
+          }
+        }, 500);
+      };
+    }
+  });
+}
+
+// ====================================================================
+// MODAL (v3: LIFF 風 — ヘッダチップ + 進捗バー付き)
+// ====================================================================
+function openModal({ headerTitle, body, footer, onReady, progress = null, liffName = 'LIFF' }) {
+  const backdrop = document.getElementById('modal-backdrop');
+  const progressHtml = progress !== null
+    ? `<div class="liff-progress-line"><div class="liff-progress-line-bar" style="width:${progress}%"></div></div>`
+    : '';
+  modalEl().innerHTML = `
+    <div class="modal-header">
+      <span class="liff-chip">${liffName}</span>
+      <span class="liff-title">${headerTitle}</span>
+      <span class="close" onclick="closeModal()">×</span>
+    </div>
+    ${progressHtml}
+    <div class="modal-body">${body}</div>
+    <div class="modal-footer">${footer || ''}</div>
+  `;
+  backdrop.classList.add('active');
+  // Anybot: LIFF 起動時にタグを付与
+  addTag(`liff_opened_${liffName.toLowerCase().replace(/\s+/g,'_')}`);
+  if (onReady) setTimeout(onReady, 20);
+}
+function closeModal() {
+  document.getElementById('modal-backdrop').classList.remove('active');
+}
+
+// ====================================================================
+// SCREEN JUMPS (dev)
+// ====================================================================
+function renderScreen(id, opts = {}) {
+  const map = {
+    'RM': () => bubble({ text: '下のリッチメニューから操作してください', cls: 'notice' }),
+    'L-01': screenL01,
+    'L-02': screenL02,
+    'L-03': screenL03,
+    'L-04': screenL04,
+    'L-05': screenL05,
+    'L-06': () => screenL06(0),
+    'L-07': () => onVideoComplete(0),
+    'L-08': screenL08,
+    'L-09': screenL09,
+    'L-10': screenL10,
+    'L-11': screenL11,
+    'L-12': screenL12,
+    'L-13': onWorkSubmit,
+    'W-01': screenW01,
+    'M-01': screenM01,
+    'M-02': screenM02,
+    'M-03': screenM03,
+    'S-01': screenS01,
+    'S-02': screenS02,
+    'S-03': screenS03
+  };
+  if (map[id]) map[id]();
+}
+
+function buildScreenJumps() {
+  const cont = document.getElementById('screen-jumps');
+  cont.innerHTML = '';
+  SCREEN_JUMPS.forEach(([id, name]) => {
+    const b = document.createElement('button');
+    b.className = 'dev-btn';
+    b.textContent = id;
+    b.title = name;
+    b.onclick = () => renderScreen(id);
+    cont.appendChild(b);
+  });
+}
+
+function showHelp() {
+  bubble({ text: `📖 このプロトタイプの使い方（v3）\n\n■ リッチメニュー（画像+ホットスポット方式）\n　📚 学習する / ✍ ワーク / 📊 マイページ / 💬 サポート\n　→ state に応じて画像が切り替わる（setup/p1_running/p1_done/p2_running/p2_done）\n　→ ロック済みセルはタップ不可\n\n■ LIFF（ミニアプリ）\n　動画視聴 / 回答入力 / AI質問 など\n　ヘッダに「LIFF」チップ + 進捗バー付きで起動\n\n■ Anybot 属性 / タグ / セグメント\n　右パネルに user_attributes、発火中タグ、セグメント該当を常時表示\n　学習/視聴/提出の節目でタグが自動発火します\n\n■ セグメント一斉配信（Broadcast）\n　右パネル「一斉配信シミュレート」から該当セグメントへ配信\n\n■ シナリオプリセット A〜E\n　state + タグが同時にセットアップされます`, cls: 'notice' });
+}
+
+// ====================================================================
+// INIT
+// ====================================================================
+function init() {
+  renderRichMenu();
+  refreshAttrs();
+  buildScreenJumps();
+  dateSeparator('Today');
+  bubble({ text: `こんにちは✨\nこれは &Y オンラインビジネススクール 公式LINE プロトタイプ v3（Anybot 挙動忠実化版）です。\n\n■ v3 の再現内容\n・画像ベースのリッチメニュー（4状態で切替、ホットスポット方式）\n・LIFF 風ミニアプリ（ヘッダチップ + 進捗バー）\n・Anybot タグの発火 / セグメント評価 / 一斉配信シミュレータ\n・シナリオ履歴の可視化\n\n■ 試し方\n① 下のリッチメニュー画像をタップ\n② Dev パネル右「シナリオプリセット A〜E」で state+タグを一括セット\n③ 🎨 RM画像切替 でリッチメニューの状態バリアントを確認\n④ 📢 一斉配信シミュレート でセグメント配信を試す\n⑤ タグは動画視聴/テスト合格/ワーク提出などで自動発火します`, cls: 'notice' });
+
+  // update clock periodically
+  setInterval(() => {
+    document.getElementById('clock').textContent = nowHHMM();
+  }, 30000);
+  document.getElementById('clock').textContent = nowHHMM();
+}
+init();
+</script>
+</body>
+</html>
